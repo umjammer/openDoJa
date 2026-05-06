@@ -6,6 +6,9 @@
   <img src=".github/showcase.png" alt="showcase" />
 </p>
 
+## Requirements
+Java 22+
+
 ## Build
 
 ```bash
