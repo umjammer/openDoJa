@@ -10,13 +10,14 @@ final class LaunchCompatibility {
     private LaunchCompatibility() {
     }
 
-    static void reexecJamLauncherWithNamedModuleBridgeIfNeeded(Path jamPath) throws IOException, InterruptedException {
-        if (JamNamedModuleResourceBridge.hasRequiredAddOpens()) {
+    static void reexecJamLauncherWithRequiredAddOpensIfNeeded(Path jamPath) throws IOException, InterruptedException {
+        if (JamNamedModuleResourceBridge.hasRequiredAddOpens() && DoJaSjisCompatibility.hasRequiredAddOpens()) {
             return;
         }
-        // The bridge reflects into the boot loader's java.base module table. Re-exec once with
-        // the narrow open we need so the default in-process launch path stays unchanged.
-        Process process = new ProcessBuilder(buildNamedModuleBridgeCommand(
+        // Both the named-module resource bridge and the DoJa-specific SJIS compatibility hook rely on
+        // narrow reflective access into JDK internals. Re-exec once with only those explicit
+        // opens so the default desktop launch path stays unchanged.
+        Process process = new ProcessBuilder(buildRequiredAddOpensCommand(
                         JamLauncher.class.getName(),
                         new String[]{jamPath.toString()}))
                 .inheritIO()
@@ -147,13 +148,18 @@ final class LaunchCompatibility {
         return command;
     }
 
-    private static List<String> buildNamedModuleBridgeCommand(String mainClass, String[] args) {
+    private static List<String> buildRequiredAddOpensCommand(String mainClass, String[] args) {
         List<String> command = new ArrayList<>();
         command.add(Path.of(OpenDoJaLaunchArgs.get("java.home"), "bin", "java").toString());
         command.addAll(ManagementFactory.getRuntimeMXBean().getInputArguments());
         appendCurrentOpenDoJaProperties(command);
         appendFileEncoding(command);
-        command.add(JamNamedModuleResourceBridge.requiredAddOpensArgument());
+        if (!DoJaSjisCompatibility.hasRequiredAddOpens()) {
+            command.addAll(DoJaSjisCompatibility.requiredAddOpensArguments());
+        }
+        if (!JamNamedModuleResourceBridge.hasRequiredAddOpens()) {
+            command.add(JamNamedModuleResourceBridge.requiredAddOpensArgument());
+        }
         command.add("-cp");
         command.add(OpenDoJaLaunchArgs.get("java.class.path"));
         command.add(mainClass);

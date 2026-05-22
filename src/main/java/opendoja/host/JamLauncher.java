@@ -54,6 +54,10 @@ public final class JamLauncher {
         // Install the bridge before any app code runs so bootstrap-owned Class.getResource*
         // lookups can still fall back to the selected JAM jar.
         JamNamedModuleResourceBridge.install(gameJarPath);
+        // Legacy titles ask Java for "SJIS"/"Shift_JIS", but DoJa's mapping is not identical to
+        // the desktop JDK binding. Install the OpenDoJa-owned SJIS_i provider before app code
+        // runs, and disable the built-in Shift_JIS binding so those names resolve to it.
+        DoJaSjisCompatibility.install();
         Class<?> rawClass = loadApplicationClass(appClassName.trim(), gameJarPath);
         if (!IApplication.class.isAssignableFrom(rawClass)) {
             throw new IllegalArgumentException("AppClass does not extend IApplication: " + appClassName);
@@ -126,7 +130,7 @@ public final class JamLauncher {
             throw new IllegalArgumentException("Usage: " + usageLine());
         }
         Path jamPath = Path.of(effectiveArgs.get(0));
-        LaunchCompatibility.reexecJamLauncherWithNamedModuleBridgeIfNeeded(jamPath);
+        LaunchCompatibility.reexecJamLauncherWithRequiredAddOpensIfNeeded(jamPath);
         LaunchCompatibility.reexecJamLauncherIfNeeded(jamPath);
         try {
             launch(jamPath, true, launchType);
